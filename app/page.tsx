@@ -71,6 +71,29 @@ export default function Home() {
 
         const validResults = keywordResults.filter(result => result !== null);
         console.log('Generated Keywords for all apps:', validResults);
+
+        // Get ASO scores for first 3 keywords of main app
+        if (validResults.length > 0 && validResults[0].keywords && validResults[0].keywords.keywords) {
+          const mainAppKeywords = validResults[0].keywords.keywords.slice(0, 3);
+          console.log('Analyzing first 3 keywords of main app:', mainAppKeywords);
+          
+          const keywordScoresResponse = await fetch('http://localhost:3000/api/aso/keyword-scores/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              keywords: mainAppKeywords
+            })
+          });
+
+          if (keywordScoresResponse.ok) {
+            const keywordScores = await keywordScoresResponse.json();
+            console.log('ASO Keyword Scores:', keywordScores);
+          } else {
+            console.error('Failed to get keyword scores:', await keywordScoresResponse.json());
+          }
+        }
       }
     } catch (error) {
       setError('Request failed, please try again');
