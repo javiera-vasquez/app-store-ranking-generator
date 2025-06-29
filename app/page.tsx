@@ -20,35 +20,57 @@ export default function Home() {
     }
     setIsLoading(true);
     try {
+      // Get main app data
       const getAppData = await fetch(`http://localhost:3000/api/app-store-scraper/app/${trackId}`);
       const appData = await getAppData.json();
       setAppData(appData);
 
       if (appData) {
-        const response = await fetch('http://localhost:3000/api/aso/keyword-generator', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            appData: {
-              title: appData.title,
-              description: appData.description,
-              genres: appData.genres,
-              screenshots: appData.screenshots,
-            }
+        // Get similar apps
+        const getSimilarApps = await fetch(`http://localhost:3000/api/app-store-scraper/similar/${trackId}`);
+        const similarApps = await getSimilarApps.json();
+
+        console.log('Similar Apps:', similarApps);
+        
+        // Get top 3 similar apps data
+        const top3SimilarApps = similarApps.slice(0, 3);
+        const similarAppsData = await Promise.all(
+          top3SimilarApps.map(async (app: any) => {
+            const response = await fetch(`http://localhost:3000/api/app-store-scraper/app/${app.id}`);
+            return response.json();
           })
-        });
+        );
 
-        const data = await response.json();
+        // Generate keywords for all apps (main app + top 3 similar)
+        const allApps = [appData, ...similarAppsData];
+        const keywordResults = await Promise.all(
+          allApps.map(async (app) => {
+            const response = await fetch('http://localhost:3000/api/aso/keyword-generator', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                appData: {
+                  title: app.title,
+                  description: app.description,
+                  genres: app.genres,
+                  screenshots: app.screenshots,
+                }
+              })
+            });
 
-        if (!response.ok) {
-          console.error('API Error:', data);
-          setError('Request failed, please try again');
-          return;
-        }
+            const data = await response.json();
+            if (!response.ok) {
+              console.error('Keyword generation failed for app:', app.title, data);
+              return null;
+            }
+            return { app: app.title, keywords: data };
+          })
+        );
 
-        console.log('Generated Keywords:', data);
+        const validResults = keywordResults.filter(result => result !== null);
+        console.log('Generated Keywords for all apps:', validResults);
       }
     } catch (error) {
       setError('Request failed, please try again');
