@@ -29,8 +29,6 @@ export default function Home() {
         // Get similar apps
         const getSimilarApps = await fetch(`http://localhost:3000/api/app-store-scraper/similar/${trackId}`);
         const similarApps = await getSimilarApps.json();
-
-        console.log('Similar Apps:', similarApps);
         
         // Get top 3 similar apps data
         const top3SimilarApps = similarApps.slice(0, 3);
@@ -89,7 +87,15 @@ export default function Home() {
 
           if (keywordScoresResponse.ok) {
             const keywordScores = await keywordScoresResponse.json();
-            console.log('ASO Keyword Scores:', keywordScores);
+            
+            // Combine keywords with their scores for better comprehension
+            const keywordsWithScores = mainAppKeywords.map((keyword, index) => ({
+              keyword: keyword,
+              traffic_score: keywordScores[index]?.traffic_score || 0,
+              difficulty_score: keywordScores[index]?.difficulty_score || 0
+            }));
+            
+            console.log('ASO Keywords with Scores:', keywordsWithScores);
           } else {
             console.error('Failed to get keyword scores:', await keywordScoresResponse.json());
           }
