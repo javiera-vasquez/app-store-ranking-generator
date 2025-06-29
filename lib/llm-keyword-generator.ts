@@ -17,27 +17,29 @@ const KEYWORD_FUNCTION_TOOL = {
           type: "string",
           description: "A relevant search keyword that users would likely use to find this app"
         },
-        description: "Array of 10-15 highly relevant keywords for app store search optimization"
+        description: "Array of 15-20 highly relevant keywords for app store search optimization"
       }
     },
     required: ["keywords"]
   }
 } as const;
 
-async function fetchImageAsBase64(imageUrl: string): Promise<{base64: string, mediaType: string}> {
+type SupportedImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+
+async function fetchImageAsBase64(imageUrl: string): Promise<{ base64: string, mediaType: SupportedImageType }> {
   try {
     const response = await fetch(imageUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.status}`);
     }
-    
+
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
+
     // Detect image format from Content-Type header or URL extension
-    let mediaType = 'image/jpeg'; // default
+    let mediaType: SupportedImageType = 'image/jpeg'; // default
     const contentType = response.headers.get('content-type');
-    
+
     if (contentType) {
       if (contentType.includes('image/png')) {
         mediaType = 'image/png';
@@ -45,6 +47,8 @@ async function fetchImageAsBase64(imageUrl: string): Promise<{base64: string, me
         mediaType = 'image/jpeg';
       } else if (contentType.includes('image/webp')) {
         mediaType = 'image/webp';
+      } else if (contentType.includes('image/gif')) {
+        mediaType = 'image/gif';
       }
     } else {
       // Fallback to URL extension
@@ -52,9 +56,11 @@ async function fetchImageAsBase64(imageUrl: string): Promise<{base64: string, me
         mediaType = 'image/png';
       } else if (imageUrl.toLowerCase().includes('.webp')) {
         mediaType = 'image/webp';
+      } else if (imageUrl.toLowerCase().includes('.gif')) {
+        mediaType = 'image/gif';
       }
     }
-    
+
     return {
       base64: buffer.toString('base64'),
       mediaType
@@ -79,13 +85,13 @@ export async function generateKeywords(
   if (!appData?.title || !appData?.description) {
     throw new Error('appData must include title and description');
   }
-  
+
   if (!appData.screenshots || !Array.isArray(appData.screenshots)) {
     throw new Error('appData must include screenshots array');
   }
 
   const config = {
-    model: options.model || 'claude-3-5-sonnet-20241022',
+    model: options.model || 'claude-sonnet-4-20250514',
     maxTokens: options.maxTokens || 2000,
     temperature: options.temperature || 0.3,
     minKeywords: options.minKeywords || 15,
@@ -96,19 +102,38 @@ export async function generateKeywords(
 
   try {
     console.log(`Generating keywords for: ${appData.title}`);
+
+
+    const improvedPrompt = `Analyze this app and generate App Store Optimization (ASO) keywords that users would search to find it.
+
+    App Details:
+    - Title: ${appData.title}
+    - Description: ${appData.description}
+    - Categories: ${appData.genres.join(', ')}
     
+    Guidelines for keyword generation:
+    1. Extract keywords from the title, description, and visible text in screenshots
+    2. Include both single words and 1-2 word phrases
+    3. Consider user intent - what problems does this app solve?
+    4. Include category-specific terms users would search
+    5. Add action words (verbs) that describe what users can do with the app
+    6. Include both high-competition popular terms AND low-competition long-tail keywords
+    7. Avoid trademarked names unless they appear in the app's own title
+    8. Focus on keywords with commercial intent
+    
+    Prioritize keywords by:
+    - High relevance to core app functionality
+    - Natural search phrases users would actually type
+    - Mix of broad and specific terms
+    
+    Generate at least ${config.minKeywords} keywords, ordered by estimated value (considering both relevance and search potential).
+    
+    Note: The screenshots may contain additional features, UI elements, or use cases not mentioned in the text description.`;
+
     const content: Anthropic.MessageParam['content'] = [
       {
         type: "text",
-        text: `Analyze this app store data and generate the most relevant search keywords that users would likely use to find this app:
-
-Title: ${appData.title}
-
-Description: ${appData.description}
-
-I'm also providing screenshots of the app store page. Using the information provided in the screenshots, and the description of the app, provide the most relevant search queries directly related to the app and the information provided in screenshots, title, subtitle and description. ensuring only keywords/search queries that would be exact search phrases derived from title, subtitle, app screenshots, and description. exclude long tail keywords, "* app" search phrases and any search phrases a user just wouldnt search, only keywords that are relevant to title, subtitle, screenshots, and description (if not matching context to all these elements then ignore), must have a relevancy score of atleast 95%. Please create at least ${config.minKeywords} keywords.
-
-Use the generate_app_keywords function to return your response with the identified keywords.`
+        text: improvedPrompt
       }
     ];
 
@@ -145,20 +170,20 @@ Use the generate_app_keywords function to return your response with the identifi
     });
 
     const toolUse = response.content.find(content => content.type === 'tool_use');
-    
+
     if (toolUse && toolUse.type === 'tool_use' && toolUse.name === 'generate_app_keywords') {
       const keywords = (toolUse.input as { keywords: string[] }).keywords;
-      
+
       if (!Array.isArray(keywords) || keywords.length === 0) {
         throw new Error('No keywords generated');
       }
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
-      
+
       console.log(`✅ Generated ${keywords.length} keywords`);
-      
-      return { 
+
+      return {
         keywords: keywords,
         metadata: {
           appTitle: appData.title,
@@ -177,11 +202,11 @@ Use the generate_app_keywords function to return your response with the identifi
 
   } catch (error) {
     console.error('Error generating keywords:', error);
-    
+
     if (error instanceof Error) {
       throw new Error(`Keyword generation failed: ${error.message}`);
     }
-    
+
     throw new Error('Keyword generation failed: Unknown error');
   }
 }
@@ -191,11 +216,11 @@ export function validateEnvironment(): boolean {
     console.error('❌ ANTHROPIC_API_KEY environment variable is required');
     return false;
   }
-  
+
   if (process.env.ANTHROPIC_API_KEY.includes('your_actual_anthropic_api_key_here')) {
     console.error('❌ Please set a real ANTHROPIC_API_KEY in your .env file');
     return false;
   }
-  
+
   return true;
 }
