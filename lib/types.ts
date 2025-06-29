@@ -74,5 +74,11 @@ export interface ApiError {
   error: string;
 }
 
+export interface ASOKeywordScores {
+  difficulty: number;
+  traffic: number;
+}
+
 export type AppStoreApiResponse = AppStoreApp | ApiError;
 export type SimilarAppsApiResponse = SimilarApp[] | ApiError;
+export type ASOKeywordScoresApiResponse = ASOKeywordScores | ApiError;
