@@ -143,48 +143,116 @@ export default function Home() {
   }
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Card className="min-w-[420px]">
-          <CardHeader>
-            <CardTitle>
-              <h1>App Store Ranking Generator</h1>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="trackId">Add your trackId</label>
-              <Input type="number" placeholder="Enter your trackId" value={trackId} onChange={(e) => setTrackId(e.target.value)} />
-              <Button onClick={handleGenerate} disabled={isLoading}>{isLoading ? 'Generating...' : 'Generate'}</Button>
+    <div className="min-h-screen bg-background">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+      
+      <div className="relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        
+        <main className="container mx-auto px-4 py-16 max-w-4xl">
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-4xl font-bold tracking-tight">App Store Ranking Generator</h1>
+              <p className="text-muted-foreground">Generate ASO keywords for your app</p>
             </div>
-          </CardContent>
-        </Card>
 
-        {appData && (
-        <AppCard
-          title={appData?.title || ''}
-          icon={appData?.icon || ''}
-              primaryGenre={appData?.primaryGenre || ''}
-            keywords={appData?.keywords || []}
-          />
-        )}
+            <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-xl">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="trackId" className="text-sm font-medium">
+                      App Track ID
+                    </label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="trackId"
+                        type="number" 
+                        placeholder="e.g. 1520555361" 
+                        value={trackId} 
+                        onChange={(e) => setTrackId(e.target.value)}
+                        className="flex-1 bg-background/50 border-border/50 focus:border-primary transition-colors"
+                      />
+                      <Button 
+                        onClick={handleGenerate} 
+                        disabled={isLoading}
+                        className="min-w-[120px] bg-primary hover:bg-primary/90 transition-all duration-200"
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center gap-2">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                            Generating
+                          </span>
+                        ) : (
+                          'Generate'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  {error && (
+                    <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-        {similarApps.map((app) => (
-          <AppCard
-            title={app.title}
-            icon={app.icon}
-            primaryGenre={app.primaryGenre}
-            keywords={app.keywords}
-          />
-        ))}
-        {error && <p className="text-red-500">{error}</p>}
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <span>With ❤️ from Berlin</span>
-      </footer>
-    </div >
+            {appData && (
+              <div className="space-y-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/50" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Your App</span>
+                  </div>
+                </div>
+                
+                <AppCard
+                  title={appData?.title || ''}
+                  icon={appData?.icon || ''}
+                  primaryGenre={appData?.primaryGenre || ''}
+                  keywords={appData?.keywords || []}
+                  className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                />
+              </div>
+            )}
+
+            {similarApps.length > 0 && (
+              <div className="space-y-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/50" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Similar Apps</span>
+                  </div>
+                </div>
+                
+                <div className="grid gap-6">
+                  {similarApps.map((app, index) => (
+                    <AppCard
+                      key={app.title}
+                      title={app.title}
+                      icon={app.icon}
+                      primaryGenre={app.primaryGenre}
+                      keywords={app.keywords}
+                      className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                      style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+        
+        <footer className="relative py-8 text-center text-sm text-muted-foreground">
+          <span>Made with ❤️ from Berlin</span>
+        </footer>
+      </div>
+    </div>
   );
 }
