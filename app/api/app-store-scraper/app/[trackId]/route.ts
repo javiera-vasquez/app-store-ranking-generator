@@ -3,10 +3,10 @@ import * as store from 'app-store-scraper';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { trackId: string } }
+  { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
-    const { trackId } = params;
+    const { trackId } = await params;
     
     // Validate trackId is numeric
     const numericTrackId = parseInt(trackId, 10);
