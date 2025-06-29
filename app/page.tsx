@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AppCard } from '@/components/app-card';
+import { AppCardSkeleton } from '@/components/app-card-skeleton';
 
 type AppData = {
   title: string;
@@ -15,6 +16,7 @@ type AppData = {
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSimilarAppsLoading, setIsSimilarAppsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);  
   const [appData, setAppData] = useState<AppData | null>(null);
   const [similarApps, setSimilarApps] = useState<Array<AppData>>([]);
@@ -43,101 +45,128 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Get main app data
+      // Phase 1: Get main app data and display immediately
       const getAppData = await fetch(`http://localhost:3000/api/app-store-scraper/app/${trackIdNumber}`);
-      const appData = await getAppData.json();
+      const appDataResponse = await getAppData.json();
 
-      if (appData) {
-
-        // Get similar apps
-        const getSimilarApps = await fetch(`http://localhost:3000/api/app-store-scraper/similar/${trackIdNumber}`);
-        const similarApps = await getSimilarApps.json();
-
-        console.log('Similar Apps:', similarApps);
-
-        // Get top 3 similar apps data
-        const top3SimilarApps = similarApps.slice(0, 3);
-        const similarAppsData = await Promise.all(
-          top3SimilarApps.map(async (app: any) => {
-            const response = await fetch(`http://localhost:3000/api/app-store-scraper/app/${app.id}`);
-            return response.json();
+      if (appDataResponse) {
+        // Generate keywords for main app
+        const mainAppKeywordResponse = await fetch('http://localhost:3000/api/aso/keyword-generator', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            appData: {
+              title: appDataResponse.title,
+              description: appDataResponse.description,
+              genres: appDataResponse.genres,
+              screenshots: appDataResponse.screenshots,
+            }
           })
-        );
+        });
 
-        // Generate keywords for all apps (main app + top 3 similar)
-        const allApps = [appData, ...similarAppsData];
-        const keywordResults = await Promise.all(
-          allApps.map(async (app) => {
-            const response = await fetch('http://localhost:3000/api/aso/keyword-generator', {
+        const mainAppKeywords = await mainAppKeywordResponse.json();
+        
+        // Set main app data immediately
+        setAppData({
+          ...appDataResponse, 
+          keywords: mainAppKeywords?.keywords || []
+        });
+        setIsLoading(false);
+        
+        // Phase 2: Load similar apps in background
+        setIsSimilarAppsLoading(true);
+        
+        try {
+          // Get similar apps
+          const getSimilarApps = await fetch(`http://localhost:3000/api/app-store-scraper/similar/${trackIdNumber}`);
+          const similarAppsResponse = await getSimilarApps.json();
+
+          console.log('Similar Apps:', similarAppsResponse);
+
+          // Get top 3 similar apps data
+          const top3SimilarApps = similarAppsResponse.slice(0, 3);
+          const similarAppsData = await Promise.all(
+            top3SimilarApps.map(async (app: any) => {
+              const response = await fetch(`http://localhost:3000/api/app-store-scraper/app/${app.id}`);
+              return response.json();
+            })
+          );
+
+          // Generate keywords for similar apps
+          const similarAppsKeywordResults = await Promise.all(
+            similarAppsData.map(async (app) => {
+              const response = await fetch('http://localhost:3000/api/aso/keyword-generator', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  appData: {
+                    title: app.title,
+                    description: app.description,
+                    genres: app.genres,
+                    screenshots: app.screenshots,
+                  }
+                })
+              });
+
+              const data = await response.json();
+              if (!response.ok) {
+                console.error('Keyword generation failed for app:', app.title, data);
+                return null;
+              }
+              return data;
+            })
+          );
+
+          setSimilarApps(
+            similarAppsData.map((app, idx) => ({
+              ...app, 
+              keywords: similarAppsKeywordResults[idx]?.keywords || []
+            }))
+          );
+
+          setIsSimilarAppsLoading(false);
+
+          // Get ASO scores for first 3 keywords of main app
+          if (mainAppKeywords?.keywords) {
+            const mainAppKeywordsList = mainAppKeywords.keywords.slice(0, 15);
+            console.log('Analyzing first 3 keywords of main app:', mainAppKeywordsList);
+            
+            const keywordScoresResponse = await fetch('http://localhost:3000/api/aso/keyword-scores/analyze', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                appData: {
-                  title: app.title,
-                  description: app.description,
-                  genres: app.genres,
-                  screenshots: app.screenshots,
-                }
+                keywords: mainAppKeywordsList
               })
             });
 
-            const data = await response.json();
-            if (!response.ok) {
-              console.error('Keyword generation failed for app:', app.title, data);
-              return null;
+            if (keywordScoresResponse.ok) {
+              const keywordScores = await keywordScoresResponse.json();
+              
+              // Combine keywords with their scores for better comprehension
+              const keywordsWithScores = mainAppKeywordsList.map((keyword, index) => ({
+                keyword: keyword,
+                traffic_score: keywordScores[index]?.traffic_score || 0,
+                difficulty_score: keywordScores[index]?.difficulty_score || 0
+              }));
+              
+              console.log('ASO Keywords with Scores:', keywordsWithScores);
+            } else {
+              console.error('Failed to get keyword scores:', await keywordScoresResponse.json());
             }
-            return { app: app.title, keywords: data };
-          })
-        );
-
-        const [mainApp, ...similarAppsKeywords] = keywordResults;
-        setAppData({...appData, keywords: mainApp?.keywords.keywords || []});
-        setSimilarApps(
-          similarAppsData.map((app, idx) => (
-            {...app, keywords: similarAppsKeywords[idx]?.keywords.keywords || []}
-          ))
-        );
-
-        const validResults = keywordResults.filter(result => result !== null);
-        console.log('Generated Keywords for all apps:', validResults);
-
-        // Get ASO scores for first 3 keywords of main app
-        if (validResults.length > 0 && validResults[0].keywords && validResults[0].keywords.keywords) {
-          const mainAppKeywords = validResults[0].keywords.keywords.slice(0, 3);
-          console.log('Analyzing first 3 keywords of main app:', mainAppKeywords);
-          
-          const keywordScoresResponse = await fetch('http://localhost:3000/api/aso/keyword-scores/analyze', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              keywords: mainAppKeywords
-            })
-          });
-
-          if (keywordScoresResponse.ok) {
-            const keywordScores = await keywordScoresResponse.json();
-            
-            // Combine keywords with their scores for better comprehension
-            const keywordsWithScores = mainAppKeywords.map((keyword, index) => ({
-              keyword: keyword,
-              traffic_score: keywordScores[index]?.traffic_score || 0,
-              difficulty_score: keywordScores[index]?.difficulty_score || 0
-            }));
-            
-            console.log('ASO Keywords with Scores:', keywordsWithScores);
-          } else {
-            console.error('Failed to get keyword scores:', await keywordScoresResponse.json());
           }
-        }
+        } catch (similarAppsError) {
+          console.error('Failed to load similar apps:', similarAppsError);
+        } 
       }
     } catch (error) {
       setError('Request failed, please try again');
       console.error('Request failed:', error);
-    } finally {
       setIsLoading(false);
     }
   }
@@ -220,29 +249,40 @@ export default function Home() {
               </div>
             )}
 
-            {similarApps.length > 0 && (
+            {(similarApps.length > 0 || isSimilarAppsLoading) && (
               <div className="space-y-6">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border/50" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Similar Apps</span>
+                    <span className="bg-background px-2 text-muted-foreground">
+                      {isSimilarAppsLoading ? 'Loading Similar Apps' : 'Similar Apps'}
+                    </span>
                   </div>
                 </div>
                 
                 <div className="grid gap-6">
-                  {similarApps.map((app, index) => (
-                    <AppCard
-                      key={app.title}
-                      title={app.title}
-                      icon={app.icon}
-                      primaryGenre={app.primaryGenre}
-                      keywords={app.keywords}
-                      className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
-                      style={{ animationDelay: `${(index + 1) * 100}ms` }}
-                    />
-                  ))}
+                  {isSimilarAppsLoading ? (
+                    [1, 2, 3].map((index) => (
+                      <AppCardSkeleton
+                        key={`skeleton-${index}`}
+                        className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                      />
+                    ))
+                  ) : (
+                    similarApps.map((app, index) => (
+                      <AppCard
+                        key={app.title}
+                        title={app.title}
+                        icon={app.icon}
+                        primaryGenre={app.primaryGenre}
+                        keywords={app.keywords}
+                        className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
+                        style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             )}
