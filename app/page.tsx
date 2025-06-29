@@ -15,32 +15,40 @@ type AppData = {
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);  
   const [appData, setAppData] = useState<AppData | null>(null);
+  const [similarApps, setSimilarApps] = useState<Array<AppData>>([]);
   const [trackId, setTrackId] = useState<string>('');
 
   const handleGenerate = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    // Reset all states
+    setAppData(null);
+    setSimilarApps([]);
+    setError(null);
+
     if (!trackId || trackId.trim() === '') {
       console.error('Track ID is required, please add a trackId');
       return;
     }
     
     const trackIdNumber = Number(trackId);
+
     if (isNaN(trackIdNumber)) {
       console.error('Track ID must be a valid number');
       setError('Track ID must be a valid number');
       return;
     }
+
     setIsLoading(true);
+
     try {
       // Get main app data
       const getAppData = await fetch(`http://localhost:3000/api/app-store-scraper/app/${trackIdNumber}`);
       const appData = await getAppData.json();
 
       if (appData) {
-        setAppData(appData);
-        console.log('App Data:', appData);
+
         // Get similar apps
         const getSimilarApps = await fetch(`http://localhost:3000/api/app-store-scraper/similar/${trackIdNumber}`);
         const similarApps = await getSimilarApps.json();
@@ -82,6 +90,14 @@ export default function Home() {
             }
             return { app: app.title, keywords: data };
           })
+        );
+
+        const [mainApp, ...similarAppsKeywords] = keywordResults;
+        setAppData({...appData, keywords: mainApp?.keywords.keywords || []});
+        setSimilarApps(
+          similarAppsData.map((app, idx) => (
+            {...app, keywords: similarAppsKeywords[idx]?.keywords.keywords || []}
+          ))
         );
 
         const validResults = keywordResults.filter(result => result !== null);
@@ -155,6 +171,15 @@ export default function Home() {
             keywords={appData?.keywords || []}
           />
         )}
+
+        {similarApps.map((app) => (
+          <AppCard
+            title={app.title}
+            icon={app.icon}
+            primaryGenre={app.primaryGenre}
+            keywords={app.keywords}
+          />
+        ))}
         {error && <p className="text-red-500">{error}</p>}
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">

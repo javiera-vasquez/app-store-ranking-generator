@@ -128,7 +128,11 @@ export async function generateKeywords(
     
     Generate at least ${config.minKeywords} keywords, ordered by estimated value (considering both relevance and search potential).
     
-    Note: The screenshots may contain additional features, UI elements, or use cases not mentioned in the text description.`;
+    Note: The screenshots may contain additional features, UI elements, or use cases not mentioned in the text description.
+    IMPORTANT: The keywords should be in the same language as the app title and description.
+    IMPORTANT: Omit any url or website references, don't include any website or url in the keywords. don't try to fetch any website or url in the description, title or in the screenshots.
+    IMPORTANT: Omit any +18 or adult content in the keywords.
+    `;
 
     const content: Anthropic.MessageParam['content'] = [
       {
