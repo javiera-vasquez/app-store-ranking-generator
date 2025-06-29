@@ -154,7 +154,7 @@ export default function Home() {
         <main className="container mx-auto px-4 py-16 max-w-4xl">
           <div className="space-y-8">
             <div className="text-center space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight">App Store Ranking Generator</h1>
+              <h1 className="text-4xl font-bold tracking-tight">AI Store Ranking Generator</h1>
               <p className="text-muted-foreground">Generate ASO keywords for your app</p>
             </div>
 
