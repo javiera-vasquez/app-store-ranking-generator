@@ -26,6 +26,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.55.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -33,6 +34,7 @@
     "@types/react-dom": "^19",
     "app-store-scraper": "^0.18.0",
     "aso-v2": "^2.0.14",
+    "dotenv": "^17.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "keyv": "4.5.4",

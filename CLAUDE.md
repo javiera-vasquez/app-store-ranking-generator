@@ -96,9 +96,46 @@ GET /api/app-store-scraper/similar/{trackId}
 - `404 Not Found`: App not found in App Store
 - `500 Internal Server Error`: Server or scraping error
 
+### ASO (App Store Optimization) API
+
+#### Generate Keywords
+```
+POST /api/aso/keyword-generator
+```
+- **Body**: JSON object with `appData` (AppStoreApp) and optional `options`
+- **Response**: Generated keywords with metadata and performance metrics
+- **Example**:
+```json
+{
+  "appData": {
+    "title": "My App",
+    "description": "App description...",
+    "screenshots": ["https://..."],
+    // ... other AppStoreApp fields
+  },
+  "options": {
+    "model": "claude-3-5-sonnet-20241022",
+    "minKeywords": 15,
+    "temperature": 0.3
+  }
+}
+```
+
+#### Error Handling
+- `400 Bad Request`: Invalid or missing appData fields
+- `401 Unauthorized`: Invalid Anthropic API key
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server or AI service error
+
+## Environment Variables
+
+The following environment variables are required:
+
+- `ANTHROPIC_API_KEY`: API key for Claude AI service (required for keyword generation)
+
 ## Notes
 
 - The project uses pnpm as the package manager
 - Turbopack is enabled for faster development builds
 - API routes use app-store-scraper to fetch iTunes/App Store data
-- No environment variables configured yet
+- Keyword generation uses Anthropic's Claude AI with vision capabilities for analyzing screenshots

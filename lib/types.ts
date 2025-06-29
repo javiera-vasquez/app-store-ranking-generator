@@ -79,6 +79,31 @@ export interface ASOKeywordScores {
   traffic: number;
 }
 
+export interface KeywordGeneratorRequest {
+  appData: AppStoreApp;
+  options?: {
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+    minKeywords?: number;
+  };
+}
+
+export interface KeywordGeneratorResponse {
+  keywords: string[];
+  metadata: {
+    appTitle: string;
+    keywordCount: number;
+    model: string;
+    generatedAt: string;
+  };
+  performance?: {
+    durationMs: number;
+    keywordsPerSecond: number;
+  };
+}
+
 export type AppStoreApiResponse = AppStoreApp | ApiError;
 export type SimilarAppsApiResponse = SimilarApp[] | ApiError;
 export type ASOKeywordScoresApiResponse = ASOKeywordScores | ApiError;
+export type KeywordGeneratorApiResponse = KeywordGeneratorResponse | ApiError;
